@@ -1,6 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
 
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
+import os
+
 class MainApp:
     def __init__(self, root):
         self.root = root
@@ -23,7 +31,13 @@ class MainApp:
         # Вкладка 2: Дороги Задание Никиты
         self.tab2 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab2, text="Плохие дороги")
-        tk.Label(self.tab2, text="Задание Никиты (16)").pack(pady=50)
+
+        try:
+            from roads import rroads
+            rroads(self.tab2)
+        except:
+            tk.Label(self.tab2, text="Задание Никиты (16)").pack(pady=50)
+        
         
         # Вкладка 3: Температура Задание Саши
         self.tab3 = ttk.Frame(self.notebook)
