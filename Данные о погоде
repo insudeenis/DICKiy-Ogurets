@@ -1,0 +1,12 @@
+[
+  {"day": 1, "t_min": 10, "t_max": 18, "t_avg": 14, "desc": "Облачно"},
+  {"day": 2, "t_min": 11, "t_max": 19, "t_avg": 15, "desc": "Ясно"},
+  {"day": 3, "t_min": 9, "t_max": 22, "t_avg": 15, "desc": "Дождь"},
+  {"day": 4, "t_min": 12, "t_max": 25, "t_avg": 18, "desc": "Ясно"},
+  {"day": 5, "t_min": 14, "t_max": 20, "t_avg": 17, "desc": "Гроза"},
+  {"day": 6, "t_min": 8, "t_max": 15, "t_avg": 11, "desc": "Облачно"},
+  {"day": 7, "t_min": 7, "t_max": 14, "t_avg": 10, "desc": "Дождь"},
+  {"day": 8, "t_min": 10, "t_max": 17, "t_avg": 13, "desc": "Ясно"},
+  {"day": 9, "t_min": 11, "t_max": 19, "t_avg": 15, "desc": "Облачно"},
+  {"day": 10, "t_min": 13, "t_max": 21, "t_avg": 17, "desc": "Ясно"}
+]
