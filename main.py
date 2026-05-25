@@ -1,12 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
+import subprocess
 import os
 
 class MainApp:
@@ -18,31 +12,38 @@ class MainApp:
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
         
-        # Вкладка 1: Жилье (Задание Иры)
+        # Вкладка 1: Жилье
         self.tab1 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab1, text="Цены на жилье")
         
         try:
-            from Housing_analitics import HousingAnalysis
+            from housing_analysis import HousingAnalysis
             HousingAnalysis(self.tab1)
-        except:
-            tk.Label(self.tab1, text="Ошибка: файл Housing_analitics.py не найден").pack()
+        except ImportError:
+            tk.Label(self.tab1, text="Ошибка: файл housing_analysis.py не найден", fg="red").pack(pady=50)
+        except Exception as e:
+            tk.Label(self.tab1, text=f"Ошибка: {e}", fg="red").pack(pady=50)
         
-        # Вкладка 2: Дороги Задание Никиты
+        # Вкладка 2: Дороги
         self.tab2 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab2, text="Плохие дороги")
-
-        try:
-            from roads import rroads
-            rroads(self.tab2)
-        except:
-            tk.Label(self.tab2, text="Задание Никиты (16)").pack(pady=50)
         
+        # Кнопка для запуска программы  Никиты (отдельным окном)
+        btn = tk.Button(self.tab2, text="Запустить анализ дорог", 
+                       command=self.run_roads_program, bg="lightblue", font=("Arial", 14))
+        btn.pack(pady=100)
         
-        # Вкладка 3: Температура Задание Саши
+        # Вкладка 3: Температура
         self.tab3 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab3, text="Температура")
-        tk.Label(self.tab3, text="Задание Саши (3)").pack(pady=50)
+        tk.Label(self.tab3, text="Задание Саши (температура)", font=("Arial", 14)).pack(pady=100)
+    
+    def run_roads_program(self):
+        # Запускаем roads.py в отдельном процессе
+        try:
+            subprocess.Popen(["python", "roads.py"])
+        except Exception as e:
+            tk.messagebox.showerror("Ошибка", f"Не удалось запустить roads.py\n{e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
