@@ -7,7 +7,7 @@ class MainApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Командный проект")
-        self.root.geometry("1200x750")
+        self.root.geometry("1000x750")
         
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
