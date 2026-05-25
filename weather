@@ -1,0 +1,243 @@
+import sys
+import json
+from abc import ABC, abstractmethod
+import numpy as np
+
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow,QWidget, QVBoxLayout, QHBoxLayout, 
+    QTableWidget, QTableWidgetItem, QPushButton, QFileDialog, 
+    QLabel, QSpinBox, QMessageBox
+)
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+
+# ==========================================
+# 1. Слой данных и бизнес-логики (SOLID / Single Responsibility)
+# ==========================================
+
+class WeatherData:
+    """Класс-сущность для хранения информации об одном дне."""
+    def __init__(self, day: int, t_min: float, t_max: float, t_avg: float, desc: str):
+        self.day = day
+        self.t_min = t_min
+        self.t_max = t_max
+        self.t_avg = t_avg
+        self.desc = desc
+        self.amplitude = t_max - t_min  # Перепад температур
+
+
+class IDataLoader(ABC):
+    """Интерфейс для загрузки данных (Dependency Inversion Principle)."""
+    @abstractmethod
+    def load(self, file_path: str) -> list[WeatherData]:
+        pass
+
+
+class JsonWeatherLoader(IDataLoader):
+    """Реализация загрузчика данных из JSON."""
+    def load(self, file_path: str) -> list[WeatherData]:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        return [
+            WeatherData(
+                day=int(item['day']),
+                t_min=float(item['t_min']),
+                t_max=float(item['t_max']),
+                t_avg=float(item['t_avg']),
+                desc=str(item['desc'])
+            ) for item in data
+        ]
+
+
+class WeatherForecaster:
+    """Класс для прогнозирования методом скользящей средней (Single Responsibility)."""
+    @staticmethod
+    def predict_moving_average(data: list[float], n: int, days_to_predict: int) -> list[float]:
+        """Экстраполяция по скользящей средней."""
+        if not data or n <= 0:
+            return []
+        
+        history = list(data)
+        predictions = []
+        
+        for _ in range(days_to_predict):
+            # Берем последние n элементов для расчета средней
+            current_window = history[-n:]
+            avg_value = sum(current_window) / len(current_window)
+            predictions.append(avg_value)
+            history.append(avg_value)  # Добавляем прогноз в историю для дальнейших шагов
+            
+        return predictions
+
+
+# ==========================================
+# 2. Слой интерфейса (GUI)
+# ==========================================
+
+class MinitchartCanvas(FigureCanvas):
+    """Интерактивный график Matplotlib, встроенный в PyQt."""
+    def __init__(self, parent=None, width=6, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super().__init__(self.fig)
+
+    def plot_weather(self, records: list[WeatherData], forecast_days: int, window_size: int):
+        self.axes.clear()
+        
+        if not records:
+            self.draw()
+            return
+
+        days = [r.day for r in records]
+        t_min = [r.t_min for r in records]
+        t_max = [r.t_max for r in records]
+        
+        # Отрисовка базовых графиков (Синий — мин., Красный — макс.)
+        self.axes.plot(days, t_min, label='Мин. температура', color='blue', marker='o')
+        self.axes.plot(days, t_max, label='Макс. температура', color='red', marker='o')
+        
+        # Расчет и вывод прогноза для t_max, если запрошено
+        if forecast_days > 0 and len(t_max) >= window_size:
+            predictions = WeatherForecaster.predict_moving_average(t_max, window_size, forecast_days)
+            forecast_days_x = list(range(days[-1] + 1, days[-1] + 1 + forecast_days))
+            
+            # Линия прогноза выделена другим стилем (пунктир) и цветом (оранжевый)
+            self.axes.plot(forecast_days_x, predictions, label=f'Прогноз (n={window_size})', 
+                           color='orange', linestyle='--', marker='s')
+
+        self.axes.set_title('График температур и прогноз')
+        self.axes.set_xlabel('День месяца')
+        self.axes.set_ylabel('Температура (°C)')
+        self.axes.grid(True, linestyle=':')
+        self.axes.legend()
+        self.draw()
+
+
+class WeatherApp(QMainWindow):
+    """Главное окно приложения."""
+    def __init__(self, loader: IDataLoader):
+        super().__init__()
+        self.loader = loader
+        self.records: list[WeatherData] = []
+        
+        self.setWindowTitle("Мониторинг погоды (Вариант 3)")
+        self.resize(1100, 700)
+        
+        self.init_ui()
+
+    def init_ui(self):
+        # Главный контейнер
+        main_widget = QWidget()
+        main_layout = QHBoxLayout(main_widget)
+        
+        # Левая панель: Управление и Таблица
+        left_panel = QVBoxLayout()
+        
+        # Кнопки и настройки
+        ctrl_layout = QHBoxLayout()
+        self.btn_open = QPushButton("Открыть файл")
+        self.btn_open.clicked.connect(self.load_file)
+        
+        self.lbl_n = QLabel("Период сглаживания (n):")
+        self.spin_n = QSpinBox()
+        self.spin_n.setRange(2, 10)
+        self.spin_n.setValue(3)
+        self.spin_n.valueChanged.connect(self.update_analytics_and_chart)
+
+        self.lbl_pred = QLabel("Дней прогноза:")
+        self.spin_pred = QSpinBox()
+        self.spin_pred.setRange(0, 15)
+        self.spin_pred.setValue(5)
+        self.spin_pred.valueChanged.connect(self.update_analytics_and_chart)
+        
+        ctrl_layout.addWidget(self.btn_open)
+        ctrl_layout.addWidget(self.lbl_n)
+        ctrl_layout.addWidget(self.spin_n)
+        ctrl_layout.addWidget(self.lbl_pred)
+        ctrl_layout.addWidget(self.spin_pred)
+        left_panel.addLayout(ctrl_layout)
+        
+        # Таблица данных
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["День", "Мин t (°C)", "Макс t (°C)", "Средняя t (°C)", "Описание"])
+        left_panel.addWidget(self.table)
+        
+        # Текстовая аналитика
+        self.lbl_stats = QLabel("Статистика: файл не загружен")
+        self.lbl_stats.setWordWrap(True)
+        self.lbl_stats.setStyleSheet("font-weight: bold; color: #333;")
+        left_panel.addWidget(self.lbl_stats)
+        
+        # Правая панель: График с навигацией (масштабирование)
+        right_panel = QVBoxLayout()
+        self.canvas = MinitchartCanvas(self)
+        self.toolbar = NavigationToolbar(self.canvas, self) # Стандартная панель для масштабирования/экспорта
+        
+        right_panel.addWidget(self.toolbar)
+        right_panel.addWidget(self.canvas)
+        
+        # Сборка интерфейса
+        main_layout.addLayout(left_panel, stretch=1)
+        main_layout.addLayout(right_panel, stretch=1)
+        self.setCentralWidget(main_widget)
+
+    def load_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Открыть файл с погодой", "", "JSON Files (*.json);;All Files (*)")
+        if not file_path:
+            return
+            
+        try:
+            self.records = self.loader.load(file_path)
+            self.populate_table()
+            self.update_analytics_and_chart()
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось прочитать файл:\n{str(e)}")
+
+    def populate_table(self):
+        self.table.setRowCount(len(self.records))
+        for row, rec in enumerate(self.records):
+            self.table.setItem(row, 0, QTableWidgetItem(str(rec.day)))
+            self.table.setItem(row, 1, QTableWidgetItem(str(rec.t_min)))
+            self.table.setItem(row, 2, QTableWidgetItem(str(rec.t_max)))
+            self.table.setItem(row, 3, QTableWidgetItem(str(rec.t_avg)))
+            self.table.setItem(row, 4, QTableWidgetItem(rec.desc))
+
+    def update_analytics_and_chart(self):
+        if not self.records:
+            return
+            
+        window_size = self.spin_n.value()
+        forecast_days = self.spin_pred.value()
+        
+        if window_size > len(self.records):
+            self.lbl_stats.setText(f"Ошибка: Период n ({window_size}) не может быть больше объема данных ({len(self.records)}).")
+            return
+
+        # Поиск экстремальных перепадов температур (амплитуды)
+        max_amp_rec = max(self.records, key=lambda r: r.amplitude)
+        min_amp_rec = min(self.records, key=lambda r: r.amplitude)
+        
+        stats_text = (
+            f"Самый СИЛЬНЫЙ перепад: День {max_amp_rec.day} (Перепад: {max_amp_rec.amplitude}°C, "
+            f"с {max_amp_rec.t_min} до {max_amp_rec.t_max}°C)\n"
+            f"Самый СЛАБЫЙ перепад: День {min_amp_rec.day} (Перепад: {min_amp_rec.amplitude}°C, "
+            f"с {min_amp_rec.t_min} до {min_amp_rec.t_max}°C)"
+        )
+        self.lbl_stats.setText(stats_text)
+        
+        # Обновление графиков
+        self.canvas.plot_weather(self.records, forecast_days, window_size)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    
+    # Конфигурируем зависимости (DIP из SOLID)
+    json_loader = JsonWeatherLoader()
+    
+    window = WeatherApp(loader=json_loader)
+    window.show()
+    sys.exit(app.exec())
