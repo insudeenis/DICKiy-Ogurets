@@ -15,10 +15,10 @@ class MainApp:
         self.notebook.add(self.tab1, text="Цены на жилье")
         
         try:
-            from housing_analysis import HousingAnalysis
+            from Housing_analitics import HousingAnalysis
             HousingAnalysis(self.tab1)
         except:
-            tk.Label(self.tab1, text="Ошибка: файл housing_analysis.py не найден").pack()
+            tk.Label(self.tab1, text="Ошибка: файл Housing_analitics.py не найден").pack()
         
         # Вкладка 2: Дороги Задание Никиты
         self.tab2 = ttk.Frame(self.notebook)
