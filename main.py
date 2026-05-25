@@ -2,6 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 import subprocess
 import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
 
 class MainApp:
     def __init__(self, root):
