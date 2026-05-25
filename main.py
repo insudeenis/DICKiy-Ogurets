@@ -7,14 +7,14 @@ class MainApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Командный проект")
-        self.root.geometry("900x600")
+        self.root.geometry("1200x750")
         
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
         
-        # Вкладка 1: Жилье
+        # Вкладка 1: Жилье (Ира)
         self.tab1 = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab1, text="Цены на жилье")
+        self.notebook.add(self.tab1, text="1. Цены на жилье")
         
         try:
             from housing_analysis import HousingAnalysis
@@ -24,26 +24,29 @@ class MainApp:
         except Exception as e:
             tk.Label(self.tab1, text=f"Ошибка: {e}", fg="red").pack(pady=50)
         
-        # Вкладка 2: Дороги
+        # Вкладка 2: Дороги (Никита)
         self.tab2 = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab2, text="Плохие дороги")
+        self.notebook.add(self.tab2, text="2. Плохие дороги")
         
-        # Кнопка для запуска программы  Никиты (отдельным окном)
-        btn = tk.Button(self.tab2, text="Запустить анализ дорог", 
-                       command=self.run_roads_program, bg="lightblue", font=("Arial", 14))
-        btn.pack(pady=100)
-        
-        # Вкладка 3: Температура
-        self.tab3 = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab3, text="Температура")
-        tk.Label(self.tab3, text="Задание Саши (температура)", font=("Arial", 14)).pack(pady=100)
-    
-    def run_roads_program(self):
-        # Запускаем roads.py в отдельном процессе
         try:
-            subprocess.Popen(["python", "roads.py"])
+            from roads_analysis import RoadsAnalysis
+            RoadsAnalysis(self.tab2)
+        except ImportError:
+            tk.Label(self.tab2, text="Ошибка: файл roads_analysis.py не найден", fg="red").pack(pady=50)
         except Exception as e:
-            tk.messagebox.showerror("Ошибка", f"Не удалось запустить roads.py\n{e}")
+            tk.Label(self.tab2, text=f"Ошибка: {e}", fg="red").pack(pady=50)
+        
+        # Вкладка 3: Температура (Саша)
+        self.tab3 = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab3, text="3. Температура")
+        
+        try:
+            from weather_analysis import WeatherAnalysis
+            WeatherAnalysis(self.tab3)
+        except ImportError:
+            tk.Label(self.tab3, text="Ошибка: файл weather_analysis.py не найден", fg="red").pack(pady=50)
+        except Exception as e:
+            tk.Label(self.tab3, text=f"Ошибка: {e}", fg="red").pack(pady=50)
 
 if __name__ == "__main__":
     root = tk.Tk()
